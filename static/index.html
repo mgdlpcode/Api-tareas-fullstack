@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tareas - Bootstrap & JS</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 50px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+
+            <!-- Formulario de Creación -->
+            <div class="card shadow-sm mb-4 border-primary mt-4">
+                <div class="card-body">
+                    <form id="createForm" onsubmit="createTask(event)">
+                        <h5 class="mb-3 text-primary">Crear nueva tarea</h5>
+                        <div class="mb-2">
+                            <textarea id="createDesc" class="form-control" placeholder="Descripción de la tarea"
+                                      rows="2" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" id="createResp" class="form-control"
+                                   placeholder="Persona responsable (opcional)">
+                        </div>
+                        <div class="d-grid">
+                            <button class="btn btn-primary" type="submit">
+                                Crear Tarea
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Encabezado de la lista y Botón Refresh -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0 text-secondary">Lista de Tareas</h4>
+                <button class="btn btn-secondary btn" onclick="refreshApp()" title="Simular refresco">
+                    Refresh
+                </button>
+            </div>
+
+            <!-- Lista de Tareas -->
+            <div id="taskList" class="list-group shadow-sm">
+                <!-- Las tareas se insertarán aquí dinámicamente -->
+            </div>
+
+            <!-- Mensaje de lista vacía -->
+            <div id="emptyMessage" class="text-center mt-3 text-muted">
+                No hay tareas pendientes. ¡Disfruta tu día!
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Lógica -->
+<script>
+    const API_URL = 'http://localhost:8000/tareas/';
+
+    // Referencias a elementos del DOM
+    const createDesc = document.getElementById('createDesc');
+    const createResp = document.getElementById('createResp');
+    const taskList = document.getElementById('taskList');
+    const emptyMessage = document.getElementById('emptyMessage');
+
+    // 1. Renderizar tareas desde la API
+    async function renderTasks() {
+        taskList.innerHTML = '';
+        let tasks = [];
+        try {
+            const response = await fetch(API_URL);
+            tasks = await response.json();
+        } catch (error) {
+            console.error('Error obteniendo tareas:', error);
+        }
+
+        if (tasks.length === 0) {
+            emptyMessage.classList.remove('d-none');
+        } else {
+            emptyMessage.classList.add('d-none');
+        }
+
+        tasks.forEach((task) => {
+            const li = document.createElement('div');
+            li.className = 'list-group-item task-card p-3';
+            li.innerHTML = `
+                <div class="mb-2">
+                    <textarea id="editDesc_${task.id}" class="form-control fw-bold" rows="2">${task.descripcion}</textarea>
+                </div>
+                <div class="mb-2">
+                    <input type="text" id="editResp_${task.id}" class="form-control form-control-sm" value="${task.persona}" placeholder="Persona responsable (opcional)">
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-success w-50" onclick="updateTask('${task.id}')">Actualizar</button>
+                    <button class="btn btn-outline-danger w-50" onclick="deleteTask('${task.id}')">Eliminar</button>
+                </div>
+            `;
+            taskList.appendChild(li);
+        });
+    }
+
+    // 2. Crear tarea
+    async function createTask(e) {
+        e.preventDefault();
+        const description = createDesc.value.trim();
+        if (!description) return;
+
+        const newTask = {
+            persona: createResp.value.trim(),
+            descripcion: description
+        };
+
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newTask)
+            });
+            createDesc.value = '';
+            createResp.value = '';
+            renderTasks();
+        } catch (error) {
+            console.error('Error creando tarea:', error);
+        }
+    }
+
+    // 3. Actualizar tarea
+    async function updateTask(id) {
+        const descripcion = document.getElementById(`editDesc_${id}`).value.trim();
+        const persona = document.getElementById(`editResp_${id}`).value.trim();
+
+        if (!descripcion) return;
+
+        try {
+            await fetch(`${API_URL}${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ descripcion, persona })
+            });
+            renderTasks();
+        } catch (error) {
+            console.error('Error actualizando tarea:', error);
+        }
+    }
+
+    // 4. Eliminar tarea
+    async function deleteTask(id) {
+        try {
+            await fetch(`${API_URL}${id}`, { method: 'DELETE' });
+            renderTasks();
+        } catch (error) {
+            console.error('Error eliminando tarea:', error);
+        }
+    }
+
+    // 5. Refresh (solo vuelve a renderizar)
+    function refreshApp() {
+        renderTasks();
+    }
+
+    // Renderizado inicial
+    renderTasks();
+</script>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
